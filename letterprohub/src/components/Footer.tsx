@@ -4,11 +4,15 @@ import { Logo } from './Navbar'
 
 const Footer = () => {
   const openSmartsupp = () => {
-    if (typeof window !== 'undefined' && (window as any).smartsupp) {
-      (window as any).smartsupp('chat:open')
-    }
+    if (typeof window !== 'undefined') {
+      if ((window as any).smartsupp) {
+        (window as any).smartsupp('chat:open')
+      } else if ((window as any).$crisp) {
+        (window as any).$crisp.push(['do', 'chat:open'])
+      } else {
+        window.open('https://tawk.to', '_blank')
+      }
   }
-
   return (
     <footer className="bg-navy-900 text-white pt-16 pb-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
