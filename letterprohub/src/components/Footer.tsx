@@ -1,17 +1,22 @@
 import { Link } from 'react-router-dom'
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react'
 import { Logo } from './Navbar'
-
-const Footer = () => {
-  const openSmartsupp = () => {
-    if (typeof window !== 'undefined') {
-      if ((window as any).smartsupp) {
-        (window as any).smartsupp('chat:open')
-      } else if ((window as any).$crisp) {
-        (window as any).$crisp.push(['do', 'chat:open'])
-      } else {
-        window.open('https://tawk.to', '_blank')
+const openSmartsupp = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const s = (window as any).smartsupp
+        if (s) {
+          s('chat:open')
+        } else {
+          setTimeout(() => {
+            const s2 = (window as any).smartsupp
+            if (s2) s2('chat:open')
+          }, 1500)
+        }
       }
+    } catch(e) {
+      console.log('Smartsupp not loaded yet')
+    }
   }
   return (
     <footer className="bg-navy-900 text-white pt-16 pb-6">
