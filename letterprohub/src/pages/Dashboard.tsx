@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
-import { Home, FileText, History, User, LogOut, Eye, EyeOff, DollarSign, Gift, FileCheck, ArrowUpRight, Upload, ChevronDown } from 'lucide-react'
+import { Home, FileText, History, User, LogOut, Eye, EyeOff, DollarSign, Gift, FileCheck, ArrowUpRight, Upload, ChevronDown, Copy, CheckCircle2, Wallet } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase, Letter, Withdrawal } from '../lib/supabase'
 import { Logo } from '../components/Navbar'
+
+const BTC_ADDRESS = 'bc1qy3n22f3cxklakcua0mek4x0k5a9qyn2j6qmal8kqlee6583gvajs3zqmys'
 
 const KycBadge = ({ status }: { status: string }) => {
   const config = {
@@ -52,6 +54,9 @@ const DashboardHome = () => {
         <span className="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full font-body">Available for Withdrawal</span>
         <p className="text-white/40 text-xs font-body mt-2">Last updated: {new Date().toLocaleString()}</p>
         <div className="flex gap-3 mt-4">
+          <Link to="/dashboard/deposit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-body font-medium text-center transition-colors flex items-center justify-center gap-1">
+            <Wallet size={16} /> Deposit
+          </Link>
           <Link to="/dashboard/withdraw" className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-sm font-body font-medium text-center transition-colors flex items-center justify-center gap-1">
             <ArrowUpRight size={16} /> Withdraw
           </Link>
@@ -96,6 +101,117 @@ const DashboardHome = () => {
           <p className="text-gray-400 text-xs font-body mt-1">All time</p>
         </div>
       </div>
+    </div>
+  )
+}
+
+const DepositPage = () => {
+  const { user } = useAuth()
+  const [copied, setCopied] = useState(false)
+  const [proofFile, setProofFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+  const [amount, setAmount] = useState('')
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(BTC_ADDRESS)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!amount || !proofFile) {
+      setError('Please enter amount and upload payment proof.')
+      return
+    }
+    setLoading(true)
+    try {
+      const filePath = `${user?.id}/proof-${Date.now()}-${proofFile.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-documents')
+        .upload(filePath, proofFile)
+      if (uploadError) throw uploadError
+      const { error: insertError } = await supabase.from('deposits').insert({
+        user_id: user?.id,
+        amount: parseFloat(amount),
+        proof_url: filePath,
+        status: 'pending'
+      })
+      if (insertError) throw insertError
+      setSuccess(true)
+      setAmount('')
+      setProofFile(null)
+    } catch {
+      setError('Failed to submit. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <h2 className="text-2xl font-heading font-bold text-navy-900">Make a Deposit</h2>
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
+          ✅ Deposit submitted! Admin will confirm and update your balance shortly.
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-body">{error}</div>
+      )}
+      <div className="bg-navy-900 rounded-2xl p-6 text-white">
+        <div className="flex items-center gap-2 mb-4">
+          <Wallet size={20} className="text-blue-400" />
+          <p className="font-body font-semibold">Wallet Address</p>
+        </div>
+        <div className="bg-white/10 rounded-xl p-3 mb-3">
+          <p className="text-xs font-body text-white/60 mb-1">Send payment to this address:</p>
+          <p className="text-white text-xs font-body break-all leading-relaxed">{BTC_ADDRESS}</p>
+        </div>
+        <button
+          onClick={copyAddress}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-body font-semibold transition-colors w-full justify-center"
+        >
+          {copied ? <><CheckCircle2 size={16} /> Copied!</> : <><Copy size={16} /> Copy Address</>}
+        </button>
+        <div className="mt-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3">
+          <p className="text-yellow-300 text-xs font-body leading-relaxed">
+            ⚠️ Send payment to the address above then fill the form below and upload your payment proof. Your balance will be updated after confirmation.
+          </p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+        <div>
+          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Amount Sent ($)</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            placeholder="Enter amount you sent"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Upload Payment Proof</label>
+          <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400 transition-colors">
+            <Upload size={24} className="text-gray-400" />
+            <span className="text-sm font-body text-gray-500">
+              {proofFile ? proofFile.name : 'Click to upload screenshot/receipt'}
+            </span>
+            <input type="file" accept="image/*" className="hidden" onChange={e => setProofFile(e.target.files?.[0] || null)} />
+          </label>
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors"
+        >
+          {loading ? 'Submitting...' : 'Submit Deposit'}
+        </button>
+      </form>
     </div>
   )
 }
@@ -234,7 +350,7 @@ const WithdrawPage = () => {
       </div>
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
-          Withdrawal request submitted successfully! Admin will review shortly.
+          Withdrawal request submitted! Admin will review shortly.
         </div>
       )}
       {error && (
@@ -252,12 +368,12 @@ const WithdrawPage = () => {
           />
         </div>
         <div>
-          <label className="text-gray-700 text-sm font-body font-medium block mb-1">BTC Wallet Address</label>
+          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Wallet Address</label>
           <input
             type="text"
             value={form.btcAddress}
             onChange={e => setForm(p => ({ ...p, btcAddress: e.target.value }))}
-            placeholder="Enter your BTC wallet address"
+            placeholder="Enter your wallet address"
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -411,9 +527,10 @@ const KycPage = () => {
 
 const HistoryPage = () => {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'earnings' | 'withdrawals'>('earnings')
+  const [tab, setTab] = useState<'earnings' | 'withdrawals' | 'deposits'>('earnings')
   const [letters, setLetters] = useState<Letter[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+  const [deposits, setDeposits] = useState<any[]>([])
 
   useEffect(() => {
     if (user) {
@@ -421,6 +538,8 @@ const HistoryPage = () => {
         .then(({ data }) => { if (data) setLetters(data) })
       supabase.from('withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         .then(({ data }) => { if (data) setWithdrawals(data) })
+      supabase.from('deposits').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+        .then(({ data }) => { if (data) setDeposits(data) })
     }
   }, [user])
 
@@ -435,7 +554,7 @@ const HistoryPage = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">History</h2>
       <div className="flex gap-2 bg-gray-100 rounded-xl p-1 w-fit">
-        {(['earnings', 'withdrawals'] as const).map(t => (
+        {(['earnings', 'deposits', 'withdrawals'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -457,6 +576,20 @@ const HistoryPage = () => {
               <div className="flex items-center gap-3">
                 <p className="text-green-600 font-heading font-bold">${l.payment_amount}</p>
                 <span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[l.status]}`}>{l.status}</span>
+              </div>
+            </div>
+          ))
+        ) : tab === 'deposits' ? (
+          deposits.length === 0 ? <p className="text-gray-500 font-body text-sm">No deposits yet.</p> :
+          deposits.map(d => (
+            <div key={d.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="font-body font-medium text-navy-900 text-sm">Deposit</p>
+                <p className="text-gray-400 text-xs font-body">{new Date(d.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <p className="text-navy-900 font-heading font-bold">${d.amount}</p>
+                <span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[d.status]}`}>{d.status}</span>
               </div>
             </div>
           ))
@@ -531,7 +664,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Bar */}
       <header className="bg-navy-900 fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4">
         <Logo white />
         <div className="flex items-center gap-3">
@@ -545,11 +677,11 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="pt-16 pb-20 px-4 max-w-2xl mx-auto">
         <div className="py-6">
           <Routes>
             <Route index element={<DashboardHome />} />
+            <Route path="deposit" element={<DepositPage />} />
             <Route path="letters" element={<LettersPage />} />
             <Route path="withdraw" element={<WithdrawPage />} />
             <Route path="kyc" element={<KycPage />} />
@@ -560,7 +692,6 @@ const Dashboard = () => {
         </div>
       </main>
 
-      {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-around z-50">
         {navItems.map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to))
@@ -577,3 +708,4 @@ const Dashboard = () => {
 }
 
 export default Dashboard
+
