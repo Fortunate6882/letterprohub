@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { Users, FileText, ArrowUpRight, ShieldCheck, LayoutDashboard, LogOut, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Users, FileText, ArrowUpRight, ShieldCheck, LayoutDashboard, LogOut, CheckCircle, XCircle, Eye, Wallet } from 'lucide-react'
 import { supabase, Profile, Letter, Withdrawal, KycSubmission } from '../lib/supabase'
 
 const useAdminAuth = () => {
@@ -16,7 +16,7 @@ const useAdminAuth = () => {
 
 // Overview
 const AdminOverview = () => {
-  const [stats, setStats] = useState({ users: 0, pendingKyc: 0, pendingWithdrawals: 0, letters: 0 })
+  const [stats, setStats] = useState({ users: 0, pendingKyc: 0, pendingWithdrawals: 0, letters: 0, totalDeposits: 0, pendingDeposits: 0 })
 
   useEffect(() => {
     Promise.all([
@@ -24,20 +24,25 @@ const AdminOverview = () => {
       supabase.from('kyc_submissions').select('id', { count: 'exact' }).eq('status', 'pending'),
       supabase.from('withdrawals').select('id', { count: 'exact' }).eq('status', 'pending'),
       supabase.from('letters').select('id', { count: 'exact' }).eq('status', 'submitted'),
-    ]).then(([u, k, w, l]) => {
-      setStats({ users: u.count || 0, pendingKyc: k.count || 0, pendingWithdrawals: w.count || 0, letters: l.count || 0 })
+      supabase.from('deposits').select('amount').eq('status', 'approved'),
+      supabase.from('deposits').select('id', { count: 'exact' }).eq('status', 'pending'),
+    ]).then(([u, k, w, l, td, pd]) => {
+      const totalDep = (td.data || []).reduce((sum: number, d: any) => sum + Number(d.amount), 0)
+      setStats({ users: u.count || 0, pendingKyc: k.count || 0, pendingWithdrawals: w.count || 0, letters: l.count || 0, totalDeposits: totalDep, pendingDeposits: pd.count || 0 })
     })
   }, [])
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">Dashboard Overview</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { label: 'Total Users', value: stats.users, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Pending KYC', value: stats.pendingKyc, icon: ShieldCheck, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-          { label: 'Pending Withdrawals', value: stats.pendingWithdrawals, icon: ArrowUpRight, color: 'text-red-600', bg: 'bg-red-50' },
-          { label: 'Letters Submitted', value: stats.letters, icon: FileText, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Total Users', value: String(stats.users), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Total Deposits', value: '$' + stats.totalDeposits.toFixed(2), icon: Wallet, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Pending Deposits', value: String(stats.pendingDeposits), icon: Wallet, color: 'text-orange-600', bg: 'bg-orange-50' },
+          { label: 'Pending KYC', value: String(stats.pendingKyc), icon: ShieldCheck, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+          { label: 'Pending Withdrawals', value: String(stats.pendingWithdrawals), icon: ArrowUpRight, color: 'text-red-600', bg: 'bg-red-50' },
+          { label: 'Letters Submitted', value: String(stats.letters), icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
             <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -53,6 +58,10 @@ const AdminOverview = () => {
           <Users size={20} />
           <span className="font-body font-semibold">Manage Users</span>
         </Link>
+        <Link to="/admin/deposits" className="bg-green-600 text-white rounded-2xl p-4 flex items-center gap-3 hover:bg-green-700 transition-colors">
+          <Wallet size={20} />
+          <span className="font-body font-semibold">Review Deposits</span>
+        </Link>
         <Link to="/admin/withdrawals" className="bg-navy-900 text-white rounded-2xl p-4 flex items-center gap-3 hover:bg-navy-800 transition-colors">
           <ArrowUpRight size={20} />
           <span className="font-body font-semibold">Review Withdrawals</span>
@@ -61,7 +70,7 @@ const AdminOverview = () => {
           <ShieldCheck size={20} />
           <span className="font-body font-semibold">Review KYC</span>
         </Link>
-        <Link to="/admin/letters" className="bg-green-600 text-white rounded-2xl p-4 flex items-center gap-3 hover:bg-green-700 transition-colors">
+        <Link to="/admin/letters" className="bg-purple-600 text-white rounded-2xl p-4 flex items-center gap-3 hover:bg-purple-700 transition-colors">
           <FileText size={20} />
           <span className="font-body font-semibold">Review Letters</span>
         </Link>
@@ -360,9 +369,89 @@ const AdminWithdrawals = () => {
   )
 }
 
+
+// Deposits
+const AdminDeposits = () => {
+  const [deposits, setDeposits] = useState<any[]>([])
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    supabase.from('deposits').select('*, profiles(username, email)').order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setDeposits(data) })
+  }, [])
+
+  const getUrl = (path: string) => {
+    const { data } = supabase.storage.from('kyc-documents').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const approve = async (deposit: any) => {
+    await supabase.from('deposits').update({ status: 'approved' }).eq('id', deposit.id)
+    const { data: prof } = await supabase.from('profiles').select('balance').eq('id', deposit.user_id).single()
+    if (prof) {
+      await supabase.from('profiles').update({ balance: (prof.balance || 0) + Number(deposit.amount) }).eq('id', deposit.user_id)
+    }
+    setDeposits(prev => prev.map(d => d.id === deposit.id ? { ...d, status: 'approved' } : d))
+    setMsg('Deposit approved and balance updated!')
+    setTimeout(() => setMsg(''), 3000)
+  }
+
+  const reject = async (id: string) => {
+    await supabase.from('deposits').update({ status: 'rejected' }).eq('id', id)
+    setDeposits(prev => prev.map(d => d.id === id ? { ...d, status: 'rejected' } : d))
+    setMsg('Deposit rejected.')
+    setTimeout(() => setMsg(''), 3000)
+  }
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-700',
+    approved: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700',
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-heading font-bold text-navy-900">Deposit Requests</h2>
+      {msg && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 text-sm font-body">{msg}</div>}
+      {deposits.length === 0 ? <p className="text-gray-500 font-body text-sm">No deposits yet.</p> :
+        deposits.map(d => (
+          <div key={d.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-heading font-bold text-navy-900">@{d.profiles?.username}</p>
+                <p className="text-gray-500 text-xs font-body">{d.profiles?.email} · {new Date(d.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-2xl font-heading font-bold text-navy-900">${d.amount}</p>
+                <span className={`px-2 py-1 rounded-full text-xs font-body font-medium ${statusColors[d.status]}`}>{d.status}</span>
+              </div>
+            </div>
+            {d.proof_url && (
+              <div>
+                <p className="text-xs font-body text-gray-500 mb-2">Payment Proof:</p>
+                <img src={getUrl(d.proof_url)} alt="Proof" className="w-full max-h-48 object-contain rounded-xl border" />
+              </div>
+            )}
+            {d.status === 'pending' && (
+              <div className="flex gap-3">
+                <button onClick={() => approve(d)} className="flex-1 bg-green-600 text-white py-2 rounded-xl text-sm font-body font-semibold flex items-center justify-center gap-1">
+                  <CheckCircle size={14} /> Approve & Credit Balance
+                </button>
+                <button onClick={() => reject(d.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-sm font-body font-semibold flex items-center justify-center gap-1">
+                  <XCircle size={14} /> Reject
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+    </div>
+  )
+}
+
 const adminNav = [
   { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/deposits', label: 'Deposits', icon: Wallet },
   { to: '/admin/letters', label: 'Letters', icon: FileText },
   { to: '/admin/kyc', label: 'KYC', icon: ShieldCheck },
   { to: '/admin/withdrawals', label: 'Withdrawals', icon: ArrowUpRight },
@@ -441,6 +530,7 @@ const AdminDashboard = () => {
             <Route path="users" element={<AdminUsers />} />
             <Route path="letters" element={<AdminLetters />} />
             <Route path="kyc" element={<AdminKYC />} />
+            <Route path="deposits" element={<AdminDeposits />} />
             <Route path="withdrawals" element={<AdminWithdrawals />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
