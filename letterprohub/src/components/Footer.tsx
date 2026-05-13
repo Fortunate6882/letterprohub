@@ -5,12 +5,8 @@ import { Logo } from './Navbar'
 const Footer = () => {
   const openSmartsupp = () => {
     const w = window as any
-    if (w.smartsupp) {
-      w.smartsupp('chat:open')
-    } else {
-      setTimeout(() => {
-        if (w.smartsupp) w.smartsupp('chat:open')
-      }, 2000)
+    if (w.jivo_api) {
+      w.jivo_api.open()
     }
   }
 
