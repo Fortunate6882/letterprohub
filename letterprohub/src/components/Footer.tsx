@@ -1,28 +1,23 @@
 import { Link } from 'react-router-dom'
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react'
 import { Logo } from './Navbar'
-const openSmartsupp = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        const s = (window as any).smartsupp
-        if (s) {
-          s('chat:open')
-        } else {
-          setTimeout(() => {
-            const s2 = (window as any).smartsupp
-            if (s2) s2('chat:open')
-          }, 1500)
-        }
-      }
-    } catch(e) {
-      console.log('Smartsupp not loaded yet')
+
+const Footer = () => {
+  const openSmartsupp = () => {
+    const w = window as any
+    if (w.smartsupp) {
+      w.smartsupp('chat:open')
+    } else {
+      setTimeout(() => {
+        if (w.smartsupp) w.smartsupp('chat:open')
+      }, 2000)
     }
   }
+
   return (
     <footer className="bg-navy-900 text-white pt-16 pb-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-white/10">
-          {/* Column 1 */}
           <div className="space-y-4">
             <Logo white />
             <p className="text-white/60 text-sm font-body leading-relaxed">
@@ -37,7 +32,6 @@ const openSmartsupp = () => {
             </div>
           </div>
 
-          {/* Column 2 */}
           <div>
             <h4 className="font-heading font-semibold text-white mb-4">Quick Links</h4>
             <ul className="space-y-2">
@@ -51,7 +45,6 @@ const openSmartsupp = () => {
             </ul>
           </div>
 
-          {/* Column 3 */}
           <div>
             <h4 className="font-heading font-semibold text-white mb-4">Account</h4>
             <ul className="space-y-2">
@@ -75,7 +68,6 @@ const openSmartsupp = () => {
             </ul>
           </div>
 
-          {/* Column 4 */}
           <div>
             <h4 className="font-heading font-semibold text-white mb-4">Support & Contact</h4>
             <ul className="space-y-3">
