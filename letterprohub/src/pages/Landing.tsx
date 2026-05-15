@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { CheckCircle, ArrowRight, Star } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import { useEffect } from 'react'
 import Footer from '../components/Footer'
 import FloatingNotifications from '../components/FloatingNotifications'
 
@@ -34,6 +35,18 @@ const team = [
 ]
 
 const Landing = () => {
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.src = '//code.jivosite.com/widget/v0PDhrV1WU'
+    script.async = true
+    document.body.appendChild(script)
+    return () => {
+      document.body.removeChild(script)
+      const jivo = document.getElementById('jivo-iframe-container')
+      if (jivo) jivo.remove()
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
