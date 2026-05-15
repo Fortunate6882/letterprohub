@@ -662,6 +662,18 @@ const Dashboard = () => {
   const { profile, signOut } = useAuth()
   const location = useLocation()
 
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.src = '//code.jivosite.com/widget/v0PDhrV1WU'
+    script.async = true
+    document.body.appendChild(script)
+    return () => {
+      document.body.removeChild(script)
+      const jivo = document.getElementById('jivo-iframe-container')
+      if (jivo) jivo.remove()
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-navy-900 fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4">
