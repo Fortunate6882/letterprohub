@@ -219,8 +219,10 @@ const DepositPage = () => {
 const LettersPage = () => {
   const { user } = useAuth()
   const [letters, setLetters] = useState<Letter[]>([])
-  const [submitting, setSubmitting] = useState<string | null>(null)
-  const [content, setContent] = useState<{ [key: string]: string }>({})
+  const [newLetter, setNewLetter] = useState({ title: '', content: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (user) {
@@ -229,12 +231,25 @@ const LettersPage = () => {
     }
   }, [user])
 
-  const submitLetter = async (letterId: string) => {
-    if (!content[letterId]) return
-    setSubmitting(letterId)
-    await supabase.from('letters').update({ content: content[letterId], status: 'submitted' }).eq('id', letterId)
-    setLetters(prev => prev.map(l => l.id === letterId ? { ...l, status: 'submitted', content: content[letterId] } : l))
-    setSubmitting(null)
+  const submitNewLetter = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!newLetter.title.trim()) { setError('Please enter a letter title.'); return }
+    if (!newLetter.content.trim()) { setError('Please write your letter content.'); return }
+    setSubmitting(true)
+    const { data, error: err } = await supabase.from('letters').insert({
+      user_id: user?.id,
+      title: newLetter.title.trim(),
+      content: newLetter.content.trim(),
+      status: 'submitted',
+      payment_amount: 0
+    }).select().single()
+    setSubmitting(false)
+    if (err) { setError('Failed to submit. Please try again.'); return }
+    if (data) setLetters(prev => [data, ...prev])
+    setNewLetter({ title: '', content: '' })
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 5000)
   }
 
   const statusColors: Record<string, string> = {
@@ -248,55 +263,79 @@ const LettersPage = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">My Letters</h2>
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <p className="text-blue-700 text-sm font-body">Your letter topics are assigned by our team via WhatsApp. Once you complete a letter, paste it below and submit.</p>
-      </div>
-      {letters.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
-          <FileText size={40} className="text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 font-body">No letters assigned yet. Check your WhatsApp!</p>
+
+      {/* Submit Letter Form */}
+      <form onSubmit={submitNewLetter} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+        <h3 className="font-heading font-bold text-navy-900 text-lg">Submit Your Letter Here</h3>
+
+        {submitted && (
+          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
+            ✅ Your submission is pending and will be approved by our team.
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>
+        )}
+
+        <div>
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Title</label>
+          <input
+            type="text"
+            value={newLetter.title}
+            onChange={e => setNewLetter(p => ({ ...p, title: e.target.value }))}
+            placeholder="Enter your letter title"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
+          />
         </div>
-      ) : (
-        letters.map(letter => (
-          <div key={letter.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-heading font-bold text-navy-900">{letter.title}</h3>
-                <p className="text-gray-500 text-xs font-body mt-1">{new Date(letter.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {letter.payment_amount > 0 && (
-                  <span className="text-green-600 font-body font-semibold text-sm">${letter.payment_amount}</span>
-                )}
-                <span className={`px-2 py-1 rounded-full text-xs font-body font-medium ${statusColors[letter.status]}`}>
-                  {letter.status.charAt(0).toUpperCase() + letter.status.slice(1)}
-                </span>
+        <div>
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Content</label>
+          <textarea
+            value={newLetter.content}
+            onChange={e => setNewLetter(p => ({ ...p, content: e.target.value }))}
+            placeholder="Paste or write your letter here..."
+            rows={8}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 resize-none"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          {submitting ? (
+            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Submitting...</>
+          ) : 'Submit Letter'}
+        </button>
+      </form>
+
+      {/* Previous Letters */}
+      {letters.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-heading font-semibold text-navy-900">Submission History</h3>
+          {letters.map(letter => (
+            <div key={letter.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-heading font-bold text-navy-900 text-sm">{letter.title}</h4>
+                  <p className="text-gray-400 text-xs font-body mt-0.5">{new Date(letter.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {letter.payment_amount > 0 && (
+                    <span className="text-green-600 font-body font-bold text-sm">${letter.payment_amount}</span>
+                  )}
+                  <span className={`px-2 py-1 rounded-full text-xs font-body font-medium ${statusColors[letter.status]}`}>
+                    {letter.status.charAt(0).toUpperCase() + letter.status.slice(1)}
+                  </span>
+                </div>
               </div>
             </div>
-            {letter.status === 'assigned' && (
-              <div className="space-y-3">
-                <textarea
-                  value={content[letter.id] || ''}
-                  onChange={e => setContent(prev => ({ ...prev, [letter.id]: e.target.value }))}
-                  placeholder="Paste your completed letter here..."
-                  rows={6}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm font-body focus:outline-none focus:border-blue-500 resize-none"
-                />
-                <button
-                  onClick={() => submitLetter(letter.id)}
-                  disabled={submitting === letter.id || !content[letter.id]}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-xl text-sm font-body font-semibold transition-colors"
-                >
-                  {submitting === letter.id ? 'Submitting...' : 'Submit Letter'}
-                </button>
-              </div>
-            )}
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </div>
   )
 }
+
 
 const WithdrawPage = () => {
   const { profile, refreshProfile } = useAuth()
