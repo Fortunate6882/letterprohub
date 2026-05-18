@@ -121,10 +121,13 @@ const Login = () => {
             <span>Secured by SSL</span>
           </div>
 
-          <p className="text-center text-white/60 text-sm font-body mt-4">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-blue-400 hover:text-blue-300 font-semibold">Register</Link>
-          </p>
+          <p className="text-center text-gray-500 text-sm font-body mt-2">
+  <Link to="/forgot-password" className="text-blue-600 hover:text-blue-700 font-body text-sm">Forgot Password?</Link>
+</p>
+<p className="text-center text-gray-500 text-sm font-body mt-2">
+  Don't have an account?{' '}
+  <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold">Register</Link>
+</p>
         </div>
       </div>
     </div>
