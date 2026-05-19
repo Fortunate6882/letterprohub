@@ -3,10 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -26,7 +22,7 @@ export type Profile = {
   referral_code: string
   balance: number
   bonus: number
-  kyc_status: 'not_submitted' | 'pending' | 'verified' | 'rejected'
+  kyc_status: string
   letters_completed: number
   created_at: string
 }
@@ -36,8 +32,8 @@ export type Letter = {
   user_id: string
   title: string
   content: string
+  status: string
   payment_amount: number
-  status: 'assigned' | 'submitted' | 'approved' | 'paid' | 'rejected'
   created_at: string
 }
 
@@ -45,9 +41,13 @@ export type Withdrawal = {
   id: string
   user_id: string
   amount: number
-  btc_address: string
-  swift_code: string
-  status: 'pending' | 'approved' | 'rejected'
+  payment_method: string | null
+  payment_details: Record<string, string> | null
+  wallet_type: string | null
+  wallet_address: string | null
+  btc_address: string | null
+  swift_code: string | null
+  status: string
   created_at: string
 }
 
@@ -57,6 +57,6 @@ export type KycSubmission = {
   document_type: string
   front_url: string
   back_url: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: string
   created_at: string
 }
