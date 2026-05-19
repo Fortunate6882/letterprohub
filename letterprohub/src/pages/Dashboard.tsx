@@ -338,48 +338,152 @@ const LettersPage = () => {
 
 
 const WithdrawPage = () => {
-  const { profile, refreshProfile } = useAuth()
-  const { user } = useAuth()
-  const [form, setForm] = useState({ amount: '', btcAddress: '', swiftCode: '' })
+  const { profile, refreshProfile, user } = useAuth()
+  const [method, setMethod] = useState('')
+  const [amount, setAmount] = useState('')
+  const [details, setDetails] = useState<Record<string, string>>({})
+  const [walletType, setWalletType] = useState('')
+  const [walletAddress, setWalletAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
+  const PAYMENT_METHODS = [
+    { id: 'bank_transfer', label: '🏦 Bank Transfer', fields: ['Account Name', 'Account Number', 'Bank Name', 'Sort Code / Routing Number', 'SWIFT / IBAN'] },
+    { id: 'paypal', label: '💸 PayPal', fields: ['PayPal Email'] },
+    { id: 'cashapp', label: '💵 Cash App', fields: ['$Cashtag'] },
+    { id: 'venmo', label: '💳 Venmo', fields: ['Venmo Username'] },
+    { id: 'revolut', label: '🔄 Revolut', fields: ['Revolut Username or Phone'] },
+    { id: 'wise', label: '🌍 Wise', fields: ['Wise Email or Account Number'] },
+    { id: 'zelle', label: '📱 Zelle', fields: ['Zelle Email or Phone Number'] },
+    { id: 'payoneer', label: '💳 Payoneer', fields: ['Payoneer Email'] },
+    { id: 'opay', label: '🏧 Opay', fields: ['Opay Phone Number'] },
+    { id: 'palmpay', label: '🌴 Palmpay', fields: ['Palmpay Phone Number'] },
+    { id: 'gtbank', label: '🏦 GTBank', fields: ['Account Name', 'Account Number'] },
+    { id: 'access_bank', label: '🏦 Access Bank', fields: ['Account Name', 'Account Number'] },
+  ]
+
+  const WALLET_TYPES = ['BTC', 'ETH', 'USDT (TRC20)', 'USDT (ERC20)', 'BNB', 'USDC']
+
+  const selectedMethod = PAYMENT_METHODS.find(m => m.id === method)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!form.amount || !form.btcAddress || !form.swiftCode) {
-      setError('Please fill all fields.')
-      return
+    if (!amount || parseFloat(amount) <= 0) { setError('Please enter a valid amount.'); return }
+    if (profile && parseFloat(amount) > profile.balance) { setError('Insufficient balance.'); return }
+    if (!method && !walletType) { setError('Please select a payment method.'); return }
+    if (method && selectedMethod) {
+      for (const field of selectedMethod.fields) {
+        if (!details[field]?.trim()) { setError(`Please fill in ${field}.`); return }
+      }
     }
-    const amount = parseFloat(form.amount)
-    if (isNaN(amount) || amount <= 0) {
-      setError('Please enter a valid amount.')
-      return
-    }
-    if (profile && amount > profile.balance) {
-      setError('Insufficient balance.')
-      return
-    }
-    if (form.swiftCode.length < 4) {
-      setError('Invalid Swift Code.')
-      return
-    }
+    if (walletType && !walletAddress.trim()) { setError('Please enter your wallet address.'); return }
+
     setLoading(true)
     const { error: err } = await supabase.from('withdrawals').insert({
       user_id: user?.id,
-      amount,
-      btc_address: form.btcAddress,
-      swift_code: form.swiftCode,
+      amount: parseFloat(amount),
+      payment_method: method || 'crypto',
+      payment_details: method ? details : {},
+      wallet_type: walletType || null,
+      wallet_address: walletAddress || null,
       status: 'pending'
     })
     setLoading(false)
-    if (err) { setError('Failed to submit. Please try again.'); return }
+    if (err) { setError('Failed. Please try again.'); return }
     setSuccess(true)
-    setForm({ amount: '', btcAddress: '', swiftCode: '' })
+    setAmount('')
+    setMethod('')
+    setDetails({})
+    setWalletType('')
+    setWalletAddress('')
     refreshProfile()
   }
 
+  return (
+    <div className="space-y-6 max-w-lg">
+      <h2 className="text-2xl font-heading font-bold text-navy-900">Request Withdrawal</h2>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <p className="text-gray-400 text-sm font-body">Available Balance</p>
+        <p className="text-2xl font-heading font-bold text-navy-900">${Number(profile?.balance || 0).toFixed(2)}</p>
+      </div>
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">✅ Withdrawal request submitted! Admin will review shortly.</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+        <div>
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Amount ($)</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter withdrawal amount"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"/>
+        </div>
+
+        {/* Payment Type Selection */}
+        <div>
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-2">Payment Type</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => { setMethod(''); setWalletType(''); setWalletAddress(''); setDetails({}); }}
+              className={`py-3 rounded-xl text-sm font-body font-semibold border-2 transition-colors ${!walletType && !method || method ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+              🏦 Bank / Payment App
+            </button>
+            <button type="button" onClick={() => { setMethod(''); }}
+              className={`py-3 rounded-xl text-sm font-body font-semibold border-2 transition-colors ${walletType ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+              💰 Crypto Wallet
+            </button>
+          </div>
+        </div>
+
+        {/* Bank / Payment App */}
+        {!walletType && (
+          <div>
+            <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Select Payment Method</label>
+            <select value={method} onChange={e => { setMethod(e.target.value); setDetails({}) }}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 bg-white">
+              <option value="">Choose payment method</option>
+              {PAYMENT_METHODS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Dynamic fields for selected payment method */}
+        {method && selectedMethod && selectedMethod.fields.map(field => (
+          <div key={field}>
+            <label className="text-gray-700 text-sm font-body font-semibold block mb-1">{field}</label>
+            <input type="text" value={details[field] || ''} onChange={e => setDetails(p => ({ ...p, [field]: e.target.value }))}
+              placeholder={`Enter ${field}`}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"/>
+          </div>
+        ))}
+
+        {/* Crypto Wallet */}
+        {!method && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Select Wallet Type</label>
+              <select value={walletType} onChange={e => setWalletType(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 bg-white">
+                <option value="">Choose wallet type</option>
+                {WALLET_TYPES.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
+            {walletType && (
+              <div>
+                <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Wallet Address</label>
+                <input type="text" value={walletAddress} onChange={e => setWalletAddress(e.target.value)}
+                  placeholder="Enter your wallet address"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"/>
+              </div>
+            )}
+          </div>
+        )}
+
+        <button type="submit" disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-bold text-sm transition-colors">
+          {loading ? 'Submitting...' : 'Submit Request'}
+        </button>
+      </form>
+    </div>
+  )
+}
   return (
     <div className="space-y-6 max-w-lg">
       <h2 className="text-2xl font-heading font-bold text-navy-900">Request Withdrawal</h2>
