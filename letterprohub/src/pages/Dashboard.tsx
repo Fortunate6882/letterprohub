@@ -27,20 +27,14 @@ const KycBadge = ({ status }: { status: string }) => {
 const DashboardHome = () => {
   const { profile } = useAuth()
   const [showBalance, setShowBalance] = useState(true)
-
   if (!profile) return null
-
   return (
     <div className="space-y-6">
       <div>
         <p className="text-gray-500 text-sm font-body">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         <h1 className="text-2xl font-heading font-bold text-navy-900 mt-1">Hello {profile.username} 👋</h1>
-        <div className="mt-2">
-          <KycBadge status={profile.kyc_status} />
-        </div>
+        <div className="mt-2"><KycBadge status={profile.kyc_status} /></div>
       </div>
-
-      {/* Balance Card */}
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between mb-2">
           <p className="text-white/60 text-sm font-body">Account Balance</p>
@@ -61,12 +55,7 @@ const DashboardHome = () => {
             <ArrowUpRight size={16} /> Withdraw
           </Link>
         </div>
-        <div className="w-full bg-white/20 rounded-full h-1 mt-4">
-          <div className="bg-blue-400 h-1 rounded-full" style={{ width: '45%' }}></div>
-        </div>
       </div>
-
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
@@ -113,102 +102,58 @@ const DepositPage = () => {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [amount, setAmount] = useState('')
-
   const copyAddress = () => {
     navigator.clipboard.writeText(BTC_ADDRESS)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!amount || !proofFile) {
-      setError('Please enter amount and upload payment proof.')
-      return
-    }
+    if (!amount || !proofFile) { setError('Please enter amount and upload payment proof.'); return }
     setLoading(true)
     try {
       const filePath = `${user?.id}/proof-${Date.now()}-${proofFile.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('kyc-documents')
-        .upload(filePath, proofFile)
+      const { error: uploadError } = await supabase.storage.from('kyc-documents').upload(filePath, proofFile)
       if (uploadError) throw uploadError
-      const { error: insertError } = await supabase.from('deposits').insert({
-        user_id: user?.id,
-        amount: parseFloat(amount),
-        proof_url: filePath,
-        status: 'pending'
-      })
+      const { error: insertError } = await supabase.from('deposits').insert({ user_id: user?.id, amount: parseFloat(amount), proof_url: filePath, status: 'pending' })
       if (insertError) throw insertError
-      setSuccess(true)
-      setAmount('')
-      setProofFile(null)
-    } catch {
-      setError('Failed to submit. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+      setSuccess(true); setAmount(''); setProofFile(null)
+    } catch { setError('Failed to submit. Please try again.') }
+    finally { setLoading(false) }
   }
-
   return (
     <div className="space-y-6 max-w-lg">
       <h2 className="text-2xl font-heading font-bold text-navy-900">Make a Deposit</h2>
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
-          ✅ Deposit submitted! Admin will confirm and update your balance shortly.
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-body">{error}</div>
-      )}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">✅ Deposit submitted! Admin will confirm and update your balance shortly.</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-body">{error}</div>}
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
-        <div className="flex items-center gap-2 mb-4">
-          <Wallet size={20} className="text-blue-400" />
-          <p className="font-body font-semibold">Wallet Address</p>
-        </div>
+        <div className="flex items-center gap-2 mb-4"><Wallet size={20} className="text-blue-400" /><p className="font-body font-semibold">Wallet Address</p></div>
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <p className="text-xs font-body text-white/60 mb-1">Send payment to this address:</p>
           <p className="text-white text-xs font-body break-all leading-relaxed">{BTC_ADDRESS}</p>
         </div>
-        <button
-          onClick={copyAddress}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-body font-semibold transition-colors w-full justify-center"
-        >
+        <button onClick={copyAddress} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-body font-semibold transition-colors w-full justify-center">
           {copied ? <><CheckCircle2 size={16} /> Copied!</> : <><Copy size={16} /> Copy Address</>}
         </button>
         <div className="mt-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3">
-          <p className="text-yellow-300 text-xs font-body leading-relaxed">
-            ⚠️ Send payment to the address above then fill the form below and upload your payment proof. Your balance will be updated after confirmation.
-          </p>
+          <p className="text-yellow-300 text-xs font-body leading-relaxed">⚠️ Send payment to the address above then fill the form below and upload your payment proof.</p>
         </div>
       </div>
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
         <div>
           <label className="text-gray-700 text-sm font-body font-medium block mb-1">Amount Sent ($)</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            placeholder="Enter amount you sent"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
-          />
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount you sent" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
         </div>
         <div>
           <label className="text-gray-700 text-sm font-body font-medium block mb-1">Upload Payment Proof</label>
           <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400 transition-colors">
             <Upload size={24} className="text-gray-400" />
-            <span className="text-sm font-body text-gray-500">
-              {proofFile ? proofFile.name : 'Click to upload screenshot/receipt'}
-            </span>
+            <span className="text-sm font-body text-gray-500">{proofFile ? proofFile.name : 'Click to upload screenshot/receipt'}</span>
             <input type="file" accept="image/*" className="hidden" onChange={e => setProofFile(e.target.files?.[0] || null)} />
           </label>
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors"
-        >
+        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors">
           {loading ? 'Submitting...' : 'Submit Deposit'}
         </button>
       </form>
@@ -223,27 +168,19 @@ const LettersPage = () => {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
-
   useEffect(() => {
     if (user) {
       supabase.from('letters').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         .then(({ data }) => { if (data) setLetters(data) })
     }
   }, [user])
-
   const submitNewLetter = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!newLetter.title.trim()) { setError('Please enter a letter title.'); return }
     if (!newLetter.content.trim()) { setError('Please write your letter content.'); return }
     setSubmitting(true)
-    const { data, error: err } = await supabase.from('letters').insert({
-      user_id: user?.id,
-      title: newLetter.title.trim(),
-      content: newLetter.content.trim(),
-      status: 'submitted',
-      payment_amount: 0
-    }).select().single()
+    const { data, error: err } = await supabase.from('letters').insert({ user_id: user?.id, title: newLetter.title.trim(), content: newLetter.content.trim(), status: 'submitted', payment_amount: 0 }).select().single()
     setSubmitting(false)
     if (err) { setError('Failed to submit. Please try again.'); return }
     if (data) setLetters(prev => [data, ...prev])
@@ -251,81 +188,42 @@ const LettersPage = () => {
     setSubmitted(true)
     setTimeout(() => setSubmitted(false), 5000)
   }
-
   const statusColors: Record<string, string> = {
-    assigned: 'bg-blue-100 text-blue-700',
-    submitted: 'bg-yellow-100 text-yellow-700',
-    approved: 'bg-green-100 text-green-700',
-    paid: 'bg-purple-100 text-purple-700',
-    rejected: 'bg-red-100 text-red-700',
+    assigned: 'bg-blue-100 text-blue-700', submitted: 'bg-yellow-100 text-yellow-700',
+    approved: 'bg-green-100 text-green-700', paid: 'bg-purple-100 text-purple-700', rejected: 'bg-red-100 text-red-700',
   }
-
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">My Letters</h2>
-
-      {/* Submit Letter Form */}
       <form onSubmit={submitNewLetter} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
         <h3 className="font-heading font-bold text-navy-900 text-lg">Submit Your Letter Here</h3>
-
-        {submitted && (
-          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
-            ✅ Your submission is pending and will be approved by our team.
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>
-        )}
-
+        {submitted && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">✅ Your submission is pending and will be approved by our team.</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>}
         <div>
           <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Title</label>
-          <input
-            type="text"
-            value={newLetter.title}
-            onChange={e => setNewLetter(p => ({ ...p, title: e.target.value }))}
-            placeholder="Enter your letter title"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
-          />
+          <input type="text" value={newLetter.title} onChange={e => setNewLetter(p => ({ ...p, title: e.target.value }))} placeholder="Enter your letter title" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
         </div>
         <div>
           <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Content</label>
-          <textarea
-            value={newLetter.content}
-            onChange={e => setNewLetter(p => ({ ...p, content: e.target.value }))}
-            placeholder="Paste or write your letter here..."
-            rows={8}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 resize-none"
-          />
+          <textarea value={newLetter.content} onChange={e => setNewLetter(p => ({ ...p, content: e.target.value }))} placeholder="Paste or write your letter here..." rows={8} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 resize-none" />
         </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          {submitting ? (
-            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Submitting...</>
-          ) : 'Submit Letter'}
+        <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+          {submitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Submitting...</> : 'Submit Letter'}
         </button>
       </form>
-
-      {/* Previous Letters */}
       {letters.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-heading font-semibold text-navy-900">Submission History</h3>
           {letters.map(letter => (
-            <div key={letter.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-2">
+            <div key={letter.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
                   <h4 className="font-heading font-bold text-navy-900 text-sm">{letter.title}</h4>
                   <p className="text-gray-400 text-xs font-body mt-0.5">{new Date(letter.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {letter.payment_amount > 0 && (
-                    <span className="text-green-600 font-body font-bold text-sm">${letter.payment_amount}</span>
-                  )}
-                  <span className={`px-2 py-1 rounded-full text-xs font-body font-medium ${statusColors[letter.status]}`}>
-                    {letter.status.charAt(0).toUpperCase() + letter.status.slice(1)}
-                  </span>
+                  {letter.payment_amount > 0 && <span className="text-green-600 font-body font-bold text-sm">${letter.payment_amount}</span>}
+                  <span className={`px-2 py-1 rounded-full text-xs font-body font-medium ${statusColors[letter.status]}`}>{letter.status.charAt(0).toUpperCase() + letter.status.slice(1)}</span>
                 </div>
               </div>
             </div>
@@ -336,9 +234,9 @@ const LettersPage = () => {
   )
 }
 
-
 const WithdrawPage = () => {
   const { profile, refreshProfile, user } = useAuth()
+  const [paymentType, setPaymentType] = useState<'bank' | 'crypto' | ''>('')
   const [method, setMethod] = useState('')
   const [amount, setAmount] = useState('')
   const [details, setDetails] = useState<Record<string, string>>({})
@@ -364,7 +262,6 @@ const WithdrawPage = () => {
   ]
 
   const WALLET_TYPES = ['BTC', 'ETH', 'USDT (TRC20)', 'USDT (ERC20)', 'BNB', 'USDC']
-
   const selectedMethod = PAYMENT_METHODS.find(m => m.id === method)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -372,86 +269,96 @@ const WithdrawPage = () => {
     setError('')
     if (!amount || parseFloat(amount) <= 0) { setError('Please enter a valid amount.'); return }
     if (profile && parseFloat(amount) > profile.balance) { setError('Insufficient balance.'); return }
-    if (!method && !walletType) { setError('Please select a payment method.'); return }
-    if (method && selectedMethod) {
-      for (const field of selectedMethod.fields) {
-        if (!details[field]?.trim()) { setError(`Please fill in ${field}.`); return }
+    if (!paymentType) { setError('Please select a payment type.'); return }
+    if (paymentType === 'bank') {
+      if (!method) { setError('Please select a payment method.'); return }
+      if (selectedMethod) {
+        for (const field of selectedMethod.fields) {
+          if (!details[field]?.trim()) { setError(`Please fill in ${field}.`); return }
+        }
       }
     }
-    if (walletType && !walletAddress.trim()) { setError('Please enter your wallet address.'); return }
-
+    if (paymentType === 'crypto') {
+      if (!walletType) { setError('Please select a wallet type.'); return }
+      if (!walletAddress.trim()) { setError('Please enter your wallet address.'); return }
+    }
     setLoading(true)
     const { error: err } = await supabase.from('withdrawals').insert({
       user_id: user?.id,
       amount: parseFloat(amount),
-      payment_method: method || 'crypto',
-      payment_details: method ? details : {},
-      wallet_type: walletType || null,
-      wallet_address: walletAddress || null,
+      payment_method: paymentType === 'bank' ? method : 'crypto',
+      payment_details: paymentType === 'bank' ? details : {},
+      wallet_type: paymentType === 'crypto' ? walletType : null,
+      wallet_address: paymentType === 'crypto' ? walletAddress : null,
       status: 'pending'
     })
     setLoading(false)
     if (err) { setError('Failed. Please try again.'); return }
     setSuccess(true)
-    setAmount('')
-    setMethod('')
-    setDetails({})
-    setWalletType('')
-    setWalletAddress('')
+    setAmount(''); setPaymentType(''); setMethod(''); setDetails({}); setWalletType(''); setWalletAddress('')
     refreshProfile()
   }
-  
+
   return (
     <div className="space-y-6 max-w-lg">
       <h2 className="text-2xl font-heading font-bold text-navy-900">Request Withdrawal</h2>
-      <div className="bg-navy-900 rounded-2xl p-4 text-white">
-        <p className="text-white/60 text-sm font-body">Available Balance</p>
-        <p className="text-2xl font-heading font-bold">${Number(profile?.balance || 0).toFixed(2)}</p>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <p className="text-gray-400 text-sm font-body">Available Balance</p>
+        <p className="text-2xl font-heading font-bold text-navy-900">${Number(profile?.balance || 0).toFixed(2)}</p>
       </div>
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">
-          Withdrawal request submitted! Admin will review shortly.
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-body">{error}</div>
-      )}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">✅ Withdrawal request submitted! Admin will review shortly.</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>}
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
         <div>
-          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Amount ($)</label>
-          <input
-            type="number"
-            value={form.amount}
-            onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-            placeholder="Enter withdrawal amount"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
-          />
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Amount ($)</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter withdrawal amount" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
         </div>
         <div>
-          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Wallet Address</label>
-          <input
-            type="text"
-            value={form.btcAddress}
-            onChange={e => setForm(p => ({ ...p, btcAddress: e.target.value }))}
-            placeholder="Enter your wallet address"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
-          />
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-2">Payment Type</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => { setPaymentType('bank'); setWalletType(''); setWalletAddress('') }}
+              className={`py-3 rounded-xl text-sm font-body font-semibold border-2 transition-colors ${paymentType === 'bank' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+              🏦 Bank / Payment App
+            </button>
+            <button type="button" onClick={() => { setPaymentType('crypto'); setMethod(''); setDetails({}) }}
+              className={`py-3 rounded-xl text-sm font-body font-semibold border-2 transition-colors ${paymentType === 'crypto' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+              💰 Crypto Wallet
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="text-gray-700 text-sm font-body font-medium block mb-1">Swift Code</label>
-          <input
-            type="text"
-            value={form.swiftCode}
-            onChange={e => setForm(p => ({ ...p, swiftCode: e.target.value }))}
-            placeholder="Enter Swift Code"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors"
-        >
+        {paymentType === 'bank' && (
+          <div>
+            <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Select Payment Method</label>
+            <select value={method} onChange={e => { setMethod(e.target.value); setDetails({}) }} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 bg-white">
+              <option value="">Choose payment method</option>
+              {PAYMENT_METHODS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </div>
+        )}
+        {paymentType === 'bank' && method && selectedMethod && selectedMethod.fields.map(field => (
+          <div key={field}>
+            <label className="text-gray-700 text-sm font-body font-semibold block mb-1">{field}</label>
+            <input type="text" value={details[field] || ''} onChange={e => setDetails(p => ({ ...p, [field]: e.target.value }))} placeholder={`Enter ${field}`} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
+          </div>
+        ))}
+        {paymentType === 'crypto' && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Select Wallet Type</label>
+              <select value={walletType} onChange={e => setWalletType(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 bg-white">
+                <option value="">Choose wallet type</option>
+                {WALLET_TYPES.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
+            {walletType && (
+              <div>
+                <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Wallet Address</label>
+                <input type="text" value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Enter your wallet address" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
+              </div>
+            )}
+          </div>
+        )}
+        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-bold text-sm transition-colors">
           {loading ? 'Submitting...' : 'Submit Request'}
         </button>
       </form>
@@ -467,38 +374,26 @@ const KycPage = () => {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-
-  if (profile?.kyc_status === 'pending') {
-    return (
-      <div className="max-w-lg space-y-6">
-        <h2 className="text-2xl font-heading font-bold text-navy-900">KYC Verification</h2>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
-          <p className="text-yellow-800 font-body leading-relaxed">
-            Your KYC documents have been successfully submitted and are currently under review. Our compliance team will verify your identity within 24-48 hours. You will receive an email notification once your verification is complete.
-          </p>
-        </div>
+  if (profile?.kyc_status === 'pending') return (
+    <div className="max-w-lg space-y-6">
+      <h2 className="text-2xl font-heading font-bold text-navy-900">KYC Verification</h2>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+        <p className="text-yellow-800 font-body leading-relaxed">Your KYC documents have been submitted and are under review. Our compliance team will verify your identity within 24-48 hours.</p>
       </div>
-    )
-  }
-
-  if (profile?.kyc_status === 'verified') {
-    return (
-      <div className="max-w-lg space-y-6">
-        <h2 className="text-2xl font-heading font-bold text-navy-900">KYC Verification</h2>
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-          <p className="text-green-800 font-body font-semibold">✅ Your identity has been verified!</p>
-        </div>
+    </div>
+  )
+  if (profile?.kyc_status === 'verified') return (
+    <div className="max-w-lg space-y-6">
+      <h2 className="text-2xl font-heading font-bold text-navy-900">KYC Verification</h2>
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+        <p className="text-green-800 font-body font-semibold">✅ Your identity has been verified!</p>
       </div>
-    )
-  }
-
+    </div>
+  )
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!docType || !frontFile || !backFile) {
-      setError('Please select document type and upload both front and back.')
-      return
-    }
+    if (!docType || !frontFile || !backFile) { setError('Please select document type and upload both front and back.'); return }
     setLoading(true)
     try {
       const uploadFile = async (file: File, path: string) => {
@@ -508,43 +403,26 @@ const KycPage = () => {
       }
       const frontPath = await uploadFile(frontFile, `${user?.id}/front-${Date.now()}`)
       const backPath = await uploadFile(backFile, `${user?.id}/back-${Date.now()}`)
-      await supabase.from('kyc_submissions').insert({
-        user_id: user?.id,
-        document_type: docType,
-        front_url: frontPath,
-        back_url: backPath,
-        status: 'pending'
-      })
+      await supabase.from('kyc_submissions').insert({ user_id: user?.id, document_type: docType, front_url: frontPath, back_url: backPath, status: 'pending' })
       await supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user?.id)
-      setSuccess(true)
-      refreshProfile()
-    } catch {
-      setError('Upload failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+      setSuccess(true); refreshProfile()
+    } catch { setError('Upload failed. Please try again.') }
+    finally { setLoading(false) }
   }
-
   return (
     <div className="max-w-lg space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">KYC Verification</h2>
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>}
       {success ? (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-          <p className="text-green-800 font-body leading-relaxed">
-            Your KYC documents have been successfully submitted and are currently under review. Our compliance team will verify your identity within 24-48 hours. You will receive an email notification once your verification is complete.
-          </p>
+          <p className="text-green-800 font-body leading-relaxed">Documents submitted successfully. Our team will verify within 24-48 hours.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
           <div>
             <label className="text-gray-700 text-sm font-body font-medium block mb-1">Document Type</label>
             <div className="relative">
-              <select
-                value={docType}
-                onChange={e => setDocType(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 appearance-none"
-              >
+              <select value={docType} onChange={e => setDocType(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 appearance-none">
                 <option value="">Select document type</option>
                 <option value="national_id">National ID</option>
                 <option value="drivers_license">Driver's License</option>
@@ -572,11 +450,7 @@ const KycPage = () => {
               </div>
             </>
           )}
-          <button
-            type="submit"
-            disabled={loading || !docType}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors"
-          >
+          <button type="submit" disabled={loading || !docType} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors">
             {loading ? 'Submitting...' : 'Submit KYC'}
           </button>
         </form>
@@ -591,37 +465,23 @@ const HistoryPage = () => {
   const [letters, setLetters] = useState<Letter[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [deposits, setDeposits] = useState<any[]>([])
-
   useEffect(() => {
     if (user) {
-      supabase.from('letters').select('*').eq('user_id', user.id).in('status', ['approved', 'paid']).order('created_at', { ascending: false })
-        .then(({ data }) => { if (data) setLetters(data) })
-      supabase.from('withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-        .then(({ data }) => { if (data) setWithdrawals(data) })
-      supabase.from('deposits').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-        .then(({ data }) => { if (data) setDeposits(data) })
+      supabase.from('letters').select('*').eq('user_id', user.id).in('status', ['approved', 'paid']).order('created_at', { ascending: false }).then(({ data }) => { if (data) setLetters(data) })
+      supabase.from('withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({ data }) => { if (data) setWithdrawals(data) })
+      supabase.from('deposits').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({ data }) => { if (data) setDeposits(data) })
     }
   }, [user])
-
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    approved: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
-    paid: 'bg-purple-100 text-purple-700',
+    pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700', paid: 'bg-purple-100 text-purple-700',
   }
-
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">History</h2>
       <div className="flex gap-2 bg-gray-100 rounded-xl p-1 w-fit">
         {(['earnings', 'deposits', 'withdrawals'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-body font-medium transition-colors capitalize ${tab === t ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500'}`}
-          >
-            {t}
-          </button>
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-body font-medium transition-colors capitalize ${tab === t ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500'}`}>{t}</button>
         ))}
       </div>
       <div className="space-y-3">
@@ -629,42 +489,24 @@ const HistoryPage = () => {
           letters.length === 0 ? <p className="text-gray-500 font-body text-sm">No earnings yet.</p> :
           letters.map(l => (
             <div key={l.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between">
-              <div>
-                <p className="font-body font-medium text-navy-900 text-sm">{l.title}</p>
-                <p className="text-gray-400 text-xs font-body">{new Date(l.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-green-600 font-heading font-bold">${l.payment_amount}</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[l.status]}`}>{l.status}</span>
-              </div>
+              <div><p className="font-body font-medium text-navy-900 text-sm">{l.title}</p><p className="text-gray-400 text-xs font-body">{new Date(l.created_at).toLocaleDateString()}</p></div>
+              <div className="flex items-center gap-3"><p className="text-green-600 font-heading font-bold">${l.payment_amount}</p><span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[l.status]}`}>{l.status}</span></div>
             </div>
           ))
         ) : tab === 'deposits' ? (
           deposits.length === 0 ? <p className="text-gray-500 font-body text-sm">No deposits yet.</p> :
           deposits.map(d => (
             <div key={d.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between">
-              <div>
-                <p className="font-body font-medium text-navy-900 text-sm">Deposit</p>
-                <p className="text-gray-400 text-xs font-body">{new Date(d.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-navy-900 font-heading font-bold">${d.amount}</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[d.status]}`}>{d.status}</span>
-              </div>
+              <div><p className="font-body font-medium text-navy-900 text-sm">Deposit</p><p className="text-gray-400 text-xs font-body">{new Date(d.created_at).toLocaleDateString()}</p></div>
+              <div className="flex items-center gap-3"><p className="text-navy-900 font-heading font-bold">${d.amount}</p><span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[d.status]}`}>{d.status}</span></div>
             </div>
           ))
         ) : (
           withdrawals.length === 0 ? <p className="text-gray-500 font-body text-sm">No withdrawals yet.</p> :
           withdrawals.map(w => (
             <div key={w.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between">
-              <div>
-                <p className="font-body font-medium text-navy-900 text-sm">Withdrawal Request</p>
-                <p className="text-gray-400 text-xs font-body">{new Date(w.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-navy-900 font-heading font-bold">${w.amount}</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[w.status]}`}>{w.status}</span>
-              </div>
+              <div><p className="font-body font-medium text-navy-900 text-sm">Withdrawal Request</p><p className="text-gray-400 text-xs font-body">{new Date(w.created_at).toLocaleDateString()}</p></div>
+              <div className="flex items-center gap-3"><p className="text-navy-900 font-heading font-bold">${w.amount}</p><span className={`px-2 py-1 rounded-full text-xs font-body ${statusColors[w.status]}`}>{w.status}</span></div>
             </div>
           ))
         )}
@@ -681,26 +523,10 @@ const ProfilePage = () => {
       <h2 className="text-2xl font-heading font-bold text-navy-900">My Profile</h2>
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
         <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-heading font-bold">
-            {profile.username?.[0]?.toUpperCase()}
-          </div>
-          <div>
-            <p className="font-heading font-bold text-navy-900 text-lg">{profile.full_name}</p>
-            <p className="text-gray-500 text-sm font-body">@{profile.username}</p>
-            <KycBadge status={profile.kyc_status} />
-          </div>
+          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-heading font-bold">{profile.username?.[0]?.toUpperCase()}</div>
+          <div><p className="font-heading font-bold text-navy-900 text-lg">{profile.full_name}</p><p className="text-gray-500 text-sm font-body">@{profile.username}</p><KycBadge status={profile.kyc_status} /></div>
         </div>
-        {[
-          ['Username', profile.username],
-          ['Full Name', profile.full_name],
-          ['Email', profile.email],
-          ['Phone', profile.phone],
-          ['Country', profile.country],
-          ['Member Since', new Date(profile.created_at).toLocaleDateString()],
-          ['Account Balance', `$${Number(profile.balance).toFixed(2)}`],
-          ['Welcome Bonus', `$${Number(profile.bonus).toFixed(2)}`],
-          ['Letters Completed', String(profile.letters_completed)],
-        ].map(([label, value]) => (
+        {[['Username', profile.username], ['Full Name', profile.full_name], ['Email', profile.email], ['Phone', profile.phone], ['Country', profile.country], ['Member Since', new Date(profile.created_at).toLocaleDateString()], ['Account Balance', `$${Number(profile.balance).toFixed(2)}`], ['Welcome Bonus', `$${Number(profile.bonus).toFixed(2)}`], ['Letters Completed', String(profile.letters_completed)]].map(([label, value]) => (
           <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50">
             <span className="text-gray-500 text-sm font-body">{label}</span>
             <span className="text-navy-900 text-sm font-body font-medium">{value}</span>
@@ -721,7 +547,6 @@ const navItems = [
 const Dashboard = () => {
   const { profile, signOut } = useAuth()
   const location = useLocation()
-
   useEffect(() => {
     const script = document.createElement('script')
     script.src = '//code.jivosite.com/widget/v0PDhrV1WU'
@@ -733,22 +558,15 @@ const Dashboard = () => {
       if (jivo) jivo.remove()
     }
   }, [])
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-navy-900 fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4">
         <Logo white />
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-heading font-bold">
-            {profile?.username?.[0]?.toUpperCase() || 'U'}
-          </div>
-          <button onClick={signOut} className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-body transition-colors">
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-heading font-bold">{profile?.username?.[0]?.toUpperCase() || 'U'}</div>
+          <button onClick={signOut} className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-body transition-colors"><LogOut size={16} /><span className="hidden sm:inline">Logout</span></button>
         </div>
       </header>
-
       <main className="pt-16 pb-20 px-4 max-w-2xl mx-auto">
         <div className="py-6">
           <Routes>
@@ -763,7 +581,6 @@ const Dashboard = () => {
           </Routes>
         </div>
       </main>
-
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-around z-50">
         {navItems.map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to))
@@ -780,4 +597,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-
