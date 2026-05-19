@@ -85,7 +85,6 @@ const AdminUsers = () => {
   const [selected, setSelected] = useState<Profile | null>(null)
   const [editBalance, setEditBalance] = useState('')
   const [addEarning, setAddEarning] = useState({ amount: '', title: '' })
-  const [swiftCode, setSwiftCode] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -115,16 +114,6 @@ const AdminUsers = () => {
     setMsg('Earning added!')
     setSaving(false)
     setTimeout(() => setMsg(''), 2000)
-  }
-
-  const sendSwiftCode = async () => {
-    if (!selected || !swiftCode) return
-    setSaving(true)
-    await supabase.from('profiles').update({ referral_code: `SWIFT:${swiftCode}` }).eq('id', selected.id)
-    setMsg(`Swift code sent to ${selected.username}!`)
-    setSwiftCode('')
-    setSaving(false)
-    setTimeout(() => setMsg(''), 3000)
   }
 
   return (
@@ -161,13 +150,6 @@ const AdminUsers = () => {
                     <input type="number" value={addEarning.amount} onChange={e => setAddEarning(p => ({ ...p, amount: e.target.value }))} placeholder="Amount ($)" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm font-body focus:outline-none focus:border-blue-500" />
                     <button onClick={addLetterEarning} disabled={saving} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-body font-semibold">Add</button>
                   </div>
-                </div>
-              </div>
-              <div>
-                <p className="font-body font-semibold text-navy-900 text-sm mb-2">Send Swift Code</p>
-                <div className="flex gap-2">
-                  <input type="text" value={swiftCode} onChange={e => setSwiftCode(e.target.value)} placeholder="Enter Swift Code" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm font-body focus:outline-none focus:border-blue-500" />
-                  <button onClick={sendSwiftCode} disabled={saving} className="bg-navy-900 text-white px-4 py-2 rounded-xl text-sm font-body font-semibold">Send</button>
                 </div>
               </div>
             </div>
@@ -346,15 +328,29 @@ const AdminWithdrawals = () => {
               <p className="text-2xl font-heading font-bold text-navy-900">${w.amount}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500 text-xs font-body">BTC Address</span>
-                <span className="text-navy-900 text-xs font-body font-medium break-all text-right max-w-xs">{w.btc_address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 text-xs font-body">Swift Code</span>
-                <span className="text-navy-900 text-xs font-body font-medium">{w.swift_code}</span>
-              </div>
-            </div>
+  <div className="flex justify-between">
+    <span className="text-gray-500 text-xs font-body">Payment Method</span>
+    <span className="text-navy-900 text-xs font-body font-medium capitalize">{w.payment_method || 'N/A'}</span>
+  </div>
+  {w.wallet_type && (
+    <div className="flex justify-between">
+      <span className="text-gray-500 text-xs font-body">Wallet Type</span>
+      <span className="text-navy-900 text-xs font-body font-medium">{w.wallet_type}</span>
+    </div>
+  )}
+  {w.wallet_address && (
+    <div className="flex justify-between">
+      <span className="text-gray-500 text-xs font-body">Wallet Address</span>
+      <span className="text-navy-900 text-xs font-body font-medium break-all text-right max-w-xs">{w.wallet_address}</span>
+    </div>
+  )}
+  {w.payment_details && Object.entries(w.payment_details).map(([key, value]) => (
+    <div key={key} className="flex justify-between">
+      <span className="text-gray-500 text-xs font-body">{key}</span>
+      <span className="text-navy-900 text-xs font-body font-medium break-all text-right max-w-xs">{String(value)}</span>
+    </div>
+  ))}
+</div>
             <div className="flex gap-3">
               <button onClick={() => updateWithdrawal(w.id, 'approved')} className="flex-1 bg-green-600 text-white py-2 rounded-xl text-sm font-body font-semibold flex items-center justify-center gap-1">
                 <CheckCircle size={14} /> Approve
