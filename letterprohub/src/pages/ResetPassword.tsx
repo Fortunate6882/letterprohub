@@ -9,14 +9,29 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // User is in password recovery mode
-      }
-    })
-    return () => subscription.unsubscribe()
+    // Handle the token from the URL hash
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const type = hashParams.get('type')
+
+    if (accessToken && type === 'recovery') {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || ''
+      }).then(({ error }) => {
+        if (error) {
+          setError('Invalid or expired reset link. Please request a new one.')
+        } else {
+          setReady(true)
+        }
+      })
+    } else {
+      setError('Invalid reset link. Please request a new one.')
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +68,15 @@ const ResetPassword = () => {
             <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body text-center">
               ✅ Password updated successfully! Redirecting to login...
             </div>
-          ) : (
+          ) : error && !ready ? (
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-body">{error}</div>
+              <button onClick={() => navigate('/forgot-password')}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-body font-bold text-sm">
+                Request New Reset Link
+              </button>
+            </div>
+          ) : ready ? (
             <>
               {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 text-sm font-body">{error}</div>}
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,6 +98,11 @@ const ResetPassword = () => {
                 </button>
               </form>
             </>
+          ) : (
+            <div className="text-center py-4">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-gray-500 text-sm font-body mt-2">Verifying reset link...</p>
+            </div>
           )}
         </div>
       </div>
