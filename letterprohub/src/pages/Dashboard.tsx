@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
-import { Home, FileText, History, User, LogOut, Eye, EyeOff, DollarSign, Gift, FileCheck, ArrowUpRight, Upload, ChevronDown, Copy, CheckCircle2, Wallet } from 'lucide-react'
+import { Home, FileText, History, User, LogOut, Eye, EyeOff, DollarSign, Gift, FileCheck, ArrowUpRight, Upload, ChevronDown, Copy, CheckCircle2, Wallet, Camera } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase, Letter, Withdrawal } from '../lib/supabase'
 import { Logo } from '../components/Navbar'
 
 const BTC_ADDRESS = 'bc1qy3n22f3cxklakcua0mek4x0k5a9qyn2j6qmal8kqlee6583gvajs3zqmys'
+const WA_NUMBER = '18262460563'
+const WA_MESSAGE = 'This is LetterHub Support how can we be of help?'
 
 const KycBadge = ({ status }: { status: string }) => {
   const config = {
@@ -164,48 +166,82 @@ const DepositPage = () => {
 const LettersPage = () => {
   const { user } = useAuth()
   const [letters, setLetters] = useState<Letter[]>([])
-  const [newLetter, setNewLetter] = useState({ title: '', content: '' })
+  const [title, setTitle] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+
   useEffect(() => {
     if (user) {
       supabase.from('letters').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         .then(({ data }) => { if (data) setLetters(data) })
     }
   }, [user])
-  const submitNewLetter = async (e: React.FormEvent) => {
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    setImageFile(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = ev => setPreview(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    } else { setPreview(null) }
+  }
+
+  const submitLetter = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!newLetter.title.trim()) { setError('Please enter a letter title.'); return }
-    if (!newLetter.content.trim()) { setError('Please write your letter content.'); return }
+    if (!title.trim()) { setError('Please enter a letter title.'); return }
+    if (!imageFile) { setError('Please upload an image of your letter.'); return }
     setSubmitting(true)
-    const { data, error: err } = await supabase.from('letters').insert({ user_id: user?.id, title: newLetter.title.trim(), content: newLetter.content.trim(), status: 'submitted', payment_amount: 0 }).select().single()
-    setSubmitting(false)
-    if (err) { setError('Failed to submit. Please try again.'); return }
-    if (data) setLetters(prev => [data, ...prev])
-    setNewLetter({ title: '', content: '' })
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 5000)
+    try {
+      const filePath = `letters/${user?.id}/${Date.now()}-${imageFile.name}`
+      const { error: uploadError } = await supabase.storage.from('kyc-documents').upload(filePath, imageFile)
+      if (uploadError) throw uploadError
+      const { data, error: insertError } = await supabase.from('letters').insert({
+        user_id: user?.id, title: title.trim(), content: '',
+        image_url: filePath, status: 'submitted', payment_amount: 0
+      }).select().single()
+      if (insertError) throw insertError
+      if (data) setLetters(prev => [data, ...prev])
+      setTitle(''); setImageFile(null); setPreview(null)
+      setSubmitted(true); setTimeout(() => setSubmitted(false), 5000)
+    } catch { setError('Failed to submit. Please try again.') }
+    finally { setSubmitting(false) }
   }
+
   const statusColors: Record<string, string> = {
     assigned: 'bg-blue-100 text-blue-700', submitted: 'bg-yellow-100 text-yellow-700',
     approved: 'bg-green-100 text-green-700', paid: 'bg-purple-100 text-purple-700', rejected: 'bg-red-100 text-red-700',
   }
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-bold text-navy-900">My Letters</h2>
-      <form onSubmit={submitNewLetter} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+      <form onSubmit={submitLetter} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
         <h3 className="font-heading font-bold text-navy-900 text-lg">Submit Your Letter Here</h3>
         {submitted && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm font-body">✅ Your submission is pending and will be approved by our team.</div>}
         {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-body">{error}</div>}
         <div>
           <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Title</label>
-          <input type="text" value={newLetter.title} onChange={e => setNewLetter(p => ({ ...p, title: e.target.value }))} placeholder="Enter your letter title" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter your letter title" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500" />
         </div>
         <div>
-          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Letter Content</label>
-          <textarea value={newLetter.content} onChange={e => setNewLetter(p => ({ ...p, content: e.target.value }))} placeholder="Paste or write your letter here..." rows={8} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-body focus:outline-none focus:border-blue-500 resize-none" />
+          <label className="text-gray-700 text-sm font-body font-semibold block mb-1">Upload Letter Image</label>
+          <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400 transition-colors">
+            <Camera size={28} className="text-blue-500" />
+            <span className="text-sm font-body text-gray-600 font-medium">Snap or Upload Letter Image</span>
+            <span className="text-xs font-body text-gray-400">Take a photo or choose from gallery</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          </label>
+          {preview && (
+            <div className="mt-3 relative">
+              <img src={preview} alt="Preview" className="w-full max-h-64 object-contain rounded-xl border border-gray-200" />
+              <button type="button" onClick={() => { setImageFile(null); setPreview(null) }} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
+            </div>
+          )}
         </div>
         <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-xl font-body font-semibold text-sm transition-colors flex items-center justify-center gap-2">
           {submitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Submitting...</> : 'Submit Letter'}
@@ -265,8 +301,7 @@ const WithdrawPage = () => {
   const selectedMethod = PAYMENT_METHODS.find(m => m.id === method)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!amount || parseFloat(amount) <= 0) { setError('Please enter a valid amount.'); return }
     if (profile && parseFloat(amount) > profile.balance) { setError('Insufficient balance.'); return }
     if (!paymentType) { setError('Please select a payment type.'); return }
@@ -284,8 +319,7 @@ const WithdrawPage = () => {
     }
     setLoading(true)
     const { error: err } = await supabase.from('withdrawals').insert({
-      user_id: user?.id,
-      amount: parseFloat(amount),
+      user_id: user?.id, amount: parseFloat(amount),
       payment_method: paymentType === 'bank' ? method : 'crypto',
       payment_details: paymentType === 'bank' ? details : {},
       wallet_type: paymentType === 'crypto' ? walletType : null,
@@ -391,15 +425,13 @@ const KycPage = () => {
     </div>
   )
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!docType || !frontFile || !backFile) { setError('Please select document type and upload both front and back.'); return }
     setLoading(true)
     try {
       const uploadFile = async (file: File, path: string) => {
         const { data, error } = await supabase.storage.from('kyc-documents').upload(path, file)
-        if (error) throw error
-        return data.path
+        if (error) throw error; return data.path
       }
       const frontPath = await uploadFile(frontFile, `${user?.id}/front-${Date.now()}`)
       const backPath = await uploadFile(backFile, `${user?.id}/back-${Date.now()}`)
@@ -547,17 +579,7 @@ const navItems = [
 const Dashboard = () => {
   const { profile, signOut } = useAuth()
   const location = useLocation()
-  useEffect(() => {
-    const script = document.createElement('script')
-    script.src = '//code.jivosite.com/widget/v0PDhrV1WU'
-    script.async = true
-    document.body.appendChild(script)
-    return () => {
-      document.body.removeChild(script)
-      const jivo = document.getElementById('jivo-iframe-container')
-      if (jivo) jivo.remove()
-    }
-  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-navy-900 fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4">
@@ -567,6 +589,7 @@ const Dashboard = () => {
           <button onClick={signOut} className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-body transition-colors"><LogOut size={16} /><span className="hidden sm:inline">Logout</span></button>
         </div>
       </header>
+
       <main className="pt-16 pb-20 px-4 max-w-2xl mx-auto">
         <div className="py-6">
           <Routes>
@@ -581,17 +604,30 @@ const Dashboard = () => {
           </Routes>
         </div>
       </main>
+
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-around z-50">
         {navItems.map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to))
           return (
             <Link key={to} to={to} className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors ${active ? 'text-blue-600' : 'text-gray-400'}`}>
-              <Icon size={20} />
-              <span className="text-xs font-body">{label}</span>
+              <Icon size={20} /><span className="text-xs font-body">{label}</span>
             </Link>
           )
         })}
       </nav>
+
+      {/* WhatsApp Floating Support Button */}
+      <a
+        href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_MESSAGE)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+        style={{ background: '#25D366' }}
+      >
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+      </a>
     </div>
   )
 }
