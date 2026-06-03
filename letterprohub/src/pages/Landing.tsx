@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { CheckCircle, ArrowRight, Star } from 'lucide-react'
 import Navbar from '../components/Navbar'
-import { useEffect } from 'react'
 import Footer from '../components/Footer'
 import FloatingNotifications from '../components/FloatingNotifications'
 
@@ -35,18 +34,6 @@ const team = [
 ]
 
 const Landing = () => {
-  useEffect(() => {
-    const script = document.createElement('script')
-    script.src = '//code.jivosite.com/widget/v0PDhrV1WU'
-    script.async = true
-    document.body.appendChild(script)
-    return () => {
-      document.body.removeChild(script)
-      const jivo = document.getElementById('jivo-iframe-container')
-      if (jivo) jivo.remove()
-    }
-  }, [])
-
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -54,10 +41,8 @@ const Landing = () => {
 
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1920&h=1080&fit=crop&crop=center')" }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1920&h=1080&fit=crop&crop=center')" }}/>
         <div className="absolute inset-0 bg-navy-900/80" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto animate-fadeInUp">
           <div className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 text-blue-300 px-4 py-2 rounded-full text-sm font-body font-medium mb-6">
@@ -75,16 +60,10 @@ const Landing = () => {
             LetterProHub connects skilled writers with real earning opportunities. Write professional letters assigned by our team and get paid instantly to your wallet.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/register"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-body font-semibold text-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
-            >
+            <Link to="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-body font-semibold text-lg flex items-center justify-center gap-2 transition-all hover:scale-105">
               Start Writing Today <ArrowRight size={20} />
             </Link>
-            <a
-              href="#how-it-works"
-              className="border border-white/30 hover:border-white/60 text-white px-8 py-4 rounded-xl font-body font-semibold text-lg transition-all hover:bg-white/10"
-            >
+            <a href="#how-it-works" className="border border-white/30 hover:border-white/60 text-white px-8 py-4 rounded-xl font-body font-semibold text-lg transition-all hover:bg-white/10">
               Learn More
             </a>
           </div>
@@ -128,21 +107,11 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-4">
-              <img
-                src="https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=600&h=300&fit=crop"
-                alt="Writing"
-                className="rounded-2xl w-full object-cover h-48"
-              />
-              <img
-                src="https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=600&h=300&fit=crop"
-                alt="Professional writing"
-                className="rounded-2xl w-full object-cover h-48"
-              />
+              <img src="https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=600&h=300&fit=crop" alt="Writing" className="rounded-2xl w-full object-cover h-48"/>
+              <img src="https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=600&h=300&fit=crop" alt="Professional writing" className="rounded-2xl w-full object-cover h-48"/>
             </div>
             <div>
-              <h2 className="text-3xl md:text-4xl font-heading font-bold text-navy-900 mb-6">
-                Why LetterProHub?
-              </h2>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-navy-900 mb-6">Why LetterProHub?</h2>
               <p className="text-gray-600 font-body leading-relaxed mb-4">
                 LetterProHub is designed to empower writers worldwide with real earning opportunities. Our platform connects skilled letter writers with clients who need professional correspondence — from business proposals to formal communications.
               </p>
@@ -192,9 +161,7 @@ const Landing = () => {
                 <div className="text-yellow-400 text-3xl mb-3">"</div>
                 <p className="text-white/80 text-sm font-body leading-relaxed mb-4">{quote}</p>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {name[0]}
-                  </div>
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">{name[0]}</div>
                   <div>
                     <p className="text-white text-xs font-heading font-semibold">{name}</p>
                     <p className="text-white/50 text-xs font-body">{role}</p>
@@ -216,14 +183,8 @@ const Landing = () => {
             Stay Informed And Never Miss A LetterProHub Update!
           </h2>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="flex-1 px-4 py-3 rounded-xl font-body text-gray-900 focus:outline-none"
-            />
-            <button className="bg-navy-900 hover:bg-navy-800 text-white px-6 py-3 rounded-xl font-body font-semibold transition-colors">
-              Subscribe Now
-            </button>
+            <input type="email" placeholder="Enter your email address" className="flex-1 px-4 py-3 rounded-xl font-body text-gray-900 focus:outline-none"/>
+            <button className="bg-navy-900 hover:bg-navy-800 text-white px-6 py-3 rounded-xl font-body font-semibold transition-colors">Subscribe Now</button>
           </div>
         </div>
       </section>
